@@ -21,6 +21,5 @@ rf_class_model <- train(
 )
 
 
-
 cache("rf_class_model", rf_class_model)
 
