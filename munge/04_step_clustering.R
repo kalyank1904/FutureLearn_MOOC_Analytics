@@ -9,3 +9,4 @@ step_clusters <- step_summary %>%
   mutate(cluster = factor(kmeans_model$cluster))
 
 cache("step_clusters", step_clusters)
+
