@@ -1,0 +1,143 @@
+---
+title: "Learning Analytics Investigation: FutureLearn MOOC"
+author: "Student Name"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+---
+# Introduction
+Learning analytics is an attempt to learn about the online learning materials by relying on the data. The report examines the learner interactions patterns in a massive open online course with FutureLearn with reproducible data science tools. The study can examine step-level interaction data of several courses run to determine what components of a course receive the most and least engagement. The study is based on the CRISP-DM framework and uses exploratory analysis, clustering, and predictive modelling to produce insights that can be applied to make evidence-based changes in course design and learner experience.
+
+# Business Understanding
+The FutureLearn course provider is the stakeholder in this investigation. The main goal is to learn the patterns of engagement of learners with individual course steps so that the course design and retention could be improved. The identification of steps that produce high or low amounts of interaction allows prioritisation of high-impact work as well as possible redesign of less effective work. The definition of success includes having a clear definition of engagement patterns that can be used to make evidence-based decisions to improve the course efficacy and the experiences of learners.
+
+# Data Understanding
+The interaction data analyzed in this investigation was gathered as raw interaction data of seven runs of an online FutureLearn massive open course. The observation is a learner engagement with a particular course step, and this means that there will be many records per learner throughout the course. The data set has variables in which identifiers of steps and number of interactions are explained. The preliminary investigation generates the existence of missing values in certain fields, combined with a considerable deviation in the frequency of interaction between steps. These features represent natural learners' behaviour and need proper treatment when preparing data.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r library}
+library(ggplot2)
+library(skimr)
+library(caret)
+
+```
+
+# Data Preparation
+The data pre-processing relations are programmed using the “dplyr” package to have a clear and reproducible work process. The raw step-level interaction records are checked to be complete and consistent in the first place. The observations with missing or invalid step identifiers are filtered out to avoid engagement measures distortion. The interaction data obtained after cleaning are further aggregated into course-step level to obtain a summary dataset which shows the total number of interactions in a particular course step. This conversion decreased the complexity of the data without loss of important engagement information to form a dataset that could be incorporated in the exploratory analysis and further modelling.This indicates how the environment of the analysis is first configured with ProjectTemplate and renv. The necessary packages are installed and a structured project directory is established where reproducibility and the useful structure of codes and proper workflows are imposed during an investigation of learning analytics.
+
+The industry characteristic represented in this is the programmatic loading of FutureLearn raw future step-activity data. A tidyverse is used in order to identify multiple CSV files and read and merge them into one dataset. The data is stored as a cache to assure efficient reuse and reproducibility without the need of manual loading of data.
+
+The data cleaning that was employed on data step activity. All records containing no step identifiers are deleted and the step variables standardised to an identical type of data. The cleaned data is persisted to be in a form of downstream processing in addition to providing an easy to understand and reproducible preprocessing phase.
+
+
+```{r data, echo=FALSE}
+skim(step_activity_clean)
+
+```
+# Descriptive Analysis
+
+This represents the code in order to dynamically determine the code of the corresponding step in the course and combination of learner interactions at a step level. The resulting summary table counts interactions in each step and gets singly typed into the cache to enable meaningful and reproducible descriptive and exploratory analysis.
+
+
+```{r desciptive, echo=FALSE}
+head(step_summary)
+summary(step_summary$n)
+
+```
+This figure presents an organized description of the cleaned step activity dataset obtained with the skimr package. It emphasises the variable completeness level, the counts of unique values, and missing data patterns, which provides an overview of the data quality level and helps to make informed decisions on further analytical measures.
+
+This report of descriptive statistics of the interactions of learners with course steps, such as central tendency and dispersion measures. These findings demonstrate that the distribution is right-skewed with a few steps getting considerably more interaction, which further encourages additional exploratory and clustering analyses.
+
+# Exploratory Visualisation
+
+```{r eda, echo=FALSE}
+ggplot(
+  step_summary %>% slice_max(n, n = 20),
+  aes(x = reorder(.data[[step_col]], n), y = n)
+) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Top 20 Most Active Course Steps",
+    x = "Course Step",
+    y = "Number of Interactions"
+  )
+
+step_summary_ranked <- step_summary %>%
+  arrange(desc(n)) %>%
+  mutate(rank = row_number())
+
+ggplot(step_summary_ranked, aes(rank, n)) +
+  geom_line() +
+  labs(
+    title = "Ranked Engagement Across Course Steps",
+    x = "Step Rank (Most to Least Active)",
+    y = "Number of Interactions"
+  )
+
+ggplot(step_summary, aes(x = n)) +
+  geom_histogram(bins = 30) +
+  scale_x_log10() +
+  labs(
+    title = "Log-Scaled Distribution of Step Interactions",
+    x = "Log(Number of Interactions)",
+    y = "Number of Steps"
+  )
+
+```
+
+This character shows the twenty course steps that have the greatest amount of learner interactions per course run. This figure can assist the course provider in determining where the learners focus their time and energy by noting the steps that are predominant by the learners. This understanding can be applied to decisions regarding what steps to keep, improve, or take as templates to redesign less engaging content. It can also be helpful in ranking instructional resources by identifying steps that make the most significant contribution to engagement of learners and course value.
+
+This number facilitates ordering of all steps of the course with the most active on one end and the least active on the other end. The sharp upward decline, with a long tail, shows that there is a great deal of concentration in very few steps and many steps are actually connected with far fewer interactions. This value aids in checking the fact that the engagement of learners is not evenly distributed and allows one to identify the core of steps that rule out engagement. This understanding is important to the stakeholder, as it shows possible places of bottleneck or dissociation in the course structure to make specific interventions to enhance continuity and keep them engaged throughout subsequent steps.
+
+This figure shows a log-scale distribution of the counts of step interactions and this scale enables easier visualisation of massively skewed engagement data. Log transformation will diminish the effect of the extreme outliers and bring out the underlying patterns that are not visible. This number can be used to illustrate that the predominance of steps is at the lower engagement rates, whereas few steps handle extremely high volumes of interactions. This skew should be noted because suitable methods of analysis could be clustering or non-linear models.
+
+# Clustering Analysis
+The code to be used to apply k-means clustering to the counts of course step interactions having been standardised. The counts of interaction are also scaled in a manner that magnitude does not determine the clustering. The removal of outliers into two clusters prevents the occurrence of singleton clusters. This enhances the stability and interpretability of the clusters. The analysis creates more correspondence with the business goal of differentiating content that is performing and content that might need redesign with these two categories of steps: low and high engagement. This value has been used to promote clean, replicable preprocessing in addition to illustrating a viable methodological adaptation taking place in accordance with the makeup of data.
+
+
+```{r clustering, echo=FALSE}
+table(step_clusters$cluster)
+
+
+ggplot(step_clusters, aes(cluster, n)) +
+  geom_boxplot() +
+  labs(
+    title = "Engagement Clusters of Course Steps",
+    x = "Cluster",
+    y = "Number of Interactions"
+  )
+
+
+```
+This number plots the outcomes of k-means clustering across two engagement groups. The boxplot indicates distinct clusters with one being a cluster of lower-engagement steps and another one is a cluster of higher-engagement steps. This segregation is the assurance that the interaction between learners occurs in a systematic manner throughout the course steps instead of a random effect that is randomly dispersed. The figure assists in converting the numerical findings of clustering into a visual aspect that can be understood easily by all the stakeholders, meaning they can easily tell what steps are always receiving more attention.
+
+# Predictive Modelling
+This is the number that demonstrates the code that was utilized to create a classification data and a random forest model. The steps in the course are grouped in the form of low, medium, and high engagement levels, which are determined by quantiles of the interactions to convert a continuous outcome into a meaningful categorical target. Cross-validation results in a solid performance estimation. This type of modelling fits the data structure and does not have drawbacks experienced in regression models. This figure provides a more valuable evaluation of the predictive accuracy of engagement levels because it frames engagement prediction as a classification problem, which increases the analytical depth of the second CRISP-DM cycle.
+
+
+```{r model, echo=FALSE}
+rf_class_model
+
+```
+This number presents the results of the trained random forest classification model. The model has a high accuracy and a high Kappa statistic, which means that there is a high level of agreement that is not by chance. These findings imply that it is possible to reliably differentiate the levels of engagement in terms of the number of interactions. This value assists in confirming the analytical style chosen in Cycle 2 and proves that the intensity of engagement is not accidental but has certain patterns. This provides assurance that the engagement categories matter and can be applied to direct specific interventions like building instructional change interventions around the consistently low-engagement steps or reinforcing high-performing content.
+
+# Conclusions
+
+This exploration has shown that the level of engagement of learners within FutureLearn MOOC is extremely skewed with a limited number of course steps that facilitate the vast majority of engagements. The cluster and classification analysis showed different patterns of engagement at each and every step. The findings can have practical implications on course providers to guide specific re-design of low-engagement content and more reinforcement of high-impact steps to improve the overall course efficacy and retention.
+
+# Bibliography
+Rizwan, S., Nee, C.K. and Garfan, S., 2025. Identifying the factors affecting student academic performance and engagement prediction in mooc using deep learning: A systematic literature review. IEEE Access.
+Ifenthaler, D. and Yau, J.Y.K., 2020. Utilising learning analytics to support study success in higher education: a systematic review. Educational Technology Research and Development, 68(4), pp.1961-1990.
+Shi, Y., Wu, M., Wei, Y., Chen, J., Dong, Q. and Zhu, K., 2025. A person-centered perspective in assessing college students′ self-regulated learning in an online learning environment: potential profiles, antecedents, and outcomes. International Journal of Educational Technology in Higher Education, 22(1), p.66.
+Mikić, V., Keković, G., Mangaroska, K., Ilić, M., Kopanja, L. and Vesin, B., 2025. Exploring learner engagement in e-learning environments: A predictive analytics perspective. International Journal of Human–Computer Interaction, pp.1-24.
+Lin, Y., Chen, H., Xia, W., Lin, F., Wang, Z. and Liu, Y., 2025. A Comprehensive Survey on Deep Learning Techniques in Educational Data Mining: Y. Lin et al. Data Science and Engineering, pp.1-27.
+Salas-Martinez, A., Ramirez-Martinell, A. and Martinez-Ramos, S., 2024. Learning analytics in higher education: a decade in systematic literature review. Труды института системного программирования РАН, 36(6), pp.216-231.
